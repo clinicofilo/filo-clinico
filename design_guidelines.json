@@ -1,0 +1,142 @@
+{
+  "theme_archetype": "Organic & Earthy (Warm Clinical)",
+  "rationale": "Medical applications directed at patients (often elderly or non-tech-savvy) must exude trust, warmth, and absolute clarity. The 'Organic & Earthy' archetype is selected to remove the cold, sterile 'tech/hospital' feel, replacing it with a calming, human-centric aesthetic. Flat, solid surfaces are prioritized over glassmorphism to ensure absolute legibility of medical data.",
+  "typography": {
+    "headings": {
+      "family": "Playfair Display",
+      "fallback": "serif",
+      "weights": ["400", "600", "700"],
+      "usage": "Use for marketing page headers, the doctor's presentation, and major dashboard section titles. DO NOT use generic sans-serif for H1/H2."
+    },
+    "body": {
+      "family": "Manrope",
+      "fallback": "sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "Use for all patient data, forms, and instructional text. Manrope provides excellent legibility for older demographics."
+    },
+    "rules": [
+      "H1 (Hero): text-4xl sm:text-5xl lg:text-6xl with tracking-tight",
+      "H2: text-3xl sm:text-4xl",
+      "Body: text-lg for marketing (better readability), text-base for dashboards",
+      "Labels/Overlines: uppercase, text-sm, tracking-[0.15em]"
+    ]
+  },
+  "colors": {
+    "background": "#F9F8F6",
+    "surface": "#FFFFFF",
+    "primary": "#1A2942",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#C86444",
+    "secondary_foreground": "#FFFFFF",
+    "accent": "#E8E2D9",
+    "accent_foreground": "#1A2942",
+    "muted": "#F3F1EC",
+    "muted_foreground": "#68645D",
+    "border": "#E2DCD0",
+    "success": "#2D4A22",
+    "warning": "#D97706",
+    "destructive": "#DC2626",
+    "rules": [
+      "Never use pure black or pure white except for specific surface contrasts. Neutral grays are tinted warm (bone/sand).",
+      "Use #1A2942 (Deep Navy) for primary buttons and high-emphasis elements.",
+      "Use #C86444 (Warm Terracotta) for secondary/highlight actions (e.g., Book Video Consult).",
+      "Text must meet APCA contrast standards. Dark text on light backgrounds is preferred.",
+      "NO teal green or teal blue (#1B93A4) for dashboards."
+    ]
+  },
+  "layouts": {
+    "marketing_page": {
+      "structure": "Bento Grid (Mode A) + Generous Vertical Spacing",
+      "spacing": "py-24 or py-32 for sections",
+      "hero": "Asymmetric layout. Text on the left, impactful imagery on the right with organic soft rounded corners (rounded-3xl).",
+      "about_doctor": "Large portrait image (max-h-[80vh] md:max-h-none) paired with a bold Serif quote."
+    },
+    "dashboard_patient": {
+      "structure": "High Density Grid (Mode B) but with larger fonts.",
+      "spacing": "p-6 or p-8 inside cards to avoid text collision.",
+      "cards": "Flat solid surfaces with subtle 1px border (#E2DCD0) and shadow-sm. NO glassmorphism.",
+      "navigation": "Sidebar or prominent top nav with large, clear icons and text."
+    },
+    "dashboard_doctor": {
+      "structure": "Functional, list/table heavy. Full width container with max-w-7xl.",
+      "cards": "Dense, crisp borders."
+    }
+  },
+  "visual_enhancers": {
+    "surfaces": "Flat Solid (Solid background, 1px subtle border, no shadow). NEVER use glassmorphism to prevent visual refraction of clinical data.",
+    "borders": "rounded-2xl for marketing, rounded-xl for dashboard cards.",
+    "shadows": "Subtle, ambient shadows (shadow-sm) only on hover for interactive elements.",
+    "textures": "Subtle noise overlay (opacity-5) on the marketing hero background to remove digital flatness."
+  },
+  "components": {
+    "buttons": "Pill-shaped (rounded-full) for marketing, slightly rounded (rounded-lg) for dashboard. High contrast focus states.",
+    "forms": "Shadcn UI heavily customized. Inputs must have large padding (p-4), large text (text-base or text-lg to prevent mobile zoom), and explicit borders.",
+    "file_upload": "Massive dropzone area with clear dashed borders, a prominent icon (lucide-react), and large instructional text. Must support multi-file easily.",
+    "cards": "Avoid overusing standard 'Cards'. Use raw divs with backgrounds and padding. When using cards in dashboards, keep them flat.",
+    "navigation": "Sticky top nav with solid background (e.g. bg-[#F9F8F6] with border-b). NO transparent headers.",
+    "toast": "Use `sonner` for all success/error notifications (e.g., 'Referti caricati con successo')."
+  },
+  "motion": {
+    "philosophy": "Minimal, reassuring motion. The demographic needs stability.",
+    "entrance": "Fade-in up (framer-motion, y: 10, opacity: 0 to 1, duration: 0.4s).",
+    "hover": "Slight lift (-translate-y-0.5) and shadow increase on cards/buttons.",
+    "transitions": "transition-colors duration-200 for buttons/links. Avoid transition-all.",
+    "accessibility": "Respect prefers-reduced-motion."
+  },
+  "accessibility": {
+    "contrast": "Strict minimum 4.5:1 for standard text. Verify buttons.",
+    "focus": "focus:ring-2 focus:ring-primary focus:ring-offset-2 on all inputs and buttons.",
+    "target_size": "Minimum 44x44px for all clickable elements, crucial for elderly users.",
+    "data_testid": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='upload-reports-button', data-testid='login-submit')."
+  },
+  "media": {
+    "rules": "Images must not exceed 80vh on mobile. Use rounded corners (rounded-3xl) for marketing photos. Do not use generic overlays; use subtle gradients if text contrast is needed."
+  },
+  "image_urls": {
+    "hero_empathy": {
+      "url": "https://images.unsplash.com/photo-1584516150909-c43483ee7932?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHw0fHxkb2N0b3IlMjBjb25zdWx0aW5nJTIwcGF0aWVudHxlbnwwfHx8fDE3ODY3OTEwOTZ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Doctor consulting patiently with patient - use in Hero section",
+      "category": "marketing_hero"
+    },
+    "about_doctor": {
+      "url": "https://images.unsplash.com/photo-1712215544003-af10130f8eb3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMG1hbGUlMjBkb2N0b3IlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODY3OTExMDB8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Young male doctor portrait (Specializzando in medicina interna) - use in 'Chi Sono' section",
+      "category": "marketing_about"
+    },
+    "clinical_records": {
+      "url": "https://images.unsplash.com/photo-1758691461990-03b49d969495?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwzfHxkb2N0b3IlMjBjb25zdWx0aW5nJTIwcGF0aWVudHxlbnwwfHx8fDE3ODY3OTEwOTZ8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Doctor writing on a chart/dossier - use in 'Come Funziona' or 'Servizi' section",
+      "category": "marketing_services"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Execute ALL designs in Italian ('Il tuo riassunto clinico', 'Chi sono', 'Carica Referti', 'Prenota Consulto').",
+    "Set up Tailwind colors using the specified Hex codes as CSS variables in index.css.",
+    "Install and use Google Fonts: 'Playfair Display' for Headings and 'Manrope' for Body.",
+    "Build a Marketing Landing Page with Hero, About the Doctor, Pricing (50€ Revisione + 50€ Consulto Video), and a clear CTA to Register/Login.",
+    "Implement Google Auth + Email login UI forms.",
+    "Create a Patient Dashboard where they can upload multiple images (referti), see dossier status, and book a video consult.",
+    "Create a Doctor Dashboard to view patient lists, review uploaded images, upload the summary PDF, and manage availability slots.",
+    "DO NOT use generic centered text for paragraphs. Left-align for readability.",
+    "Use lucide-react for all icons. Ensure they are large and clearly recognizable.",
+    "Every interactive element MUST have a descriptive data-testid attribute in kebab-case.",
+    "Use Shadcn UI components but override border radii and padding to match the generous spacing system.",
+    "Ensure Header has a SOLID background. NO transparent headers over content."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "DO NOT use glass-morphism for this specific medical app (override standard rule to ensure data clarity). Use flat solid surfaces.",
+    "You MUST NOT apply universal transition. Eg: transition: all. Always add transitions for specific properties.",
+    "You MUST NOT center align the app container. Do not add .App { text-align: center; }.",
+    "Always use modern button styles (pill-shaped for marketing, rounded-lg for dashboards) with interaction animations.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Use 'sonner' for toasts.",
+    "Never use placeholder image URLs. Use the provided image URLs.",
+    "Prioritize using pre-existing components from src/components/ui when applicable."
+  ]
+}

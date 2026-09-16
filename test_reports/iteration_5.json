@@ -1,0 +1,30 @@
+{
+  "summary": "Backend + Frontend E2E validation of new features: Integrazione dossier (25 EUR), Consensi tab & CSV export, dossier-create dialog without notes + questionnaire hint, integration-info-banner. 13/13 pytest backend tests PASS. Full Stripe E2E integration payment flow verified (checkout → success redirect → integration_pending=True → patient upload allowed → admin summary-file clears flag). Doctor Consensi tab shows 5 records including mario.rossi@test.it and consent.test@test.it with working CSV export button.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "fulfil_payment.integrazione branch correctly sets integration_pending=True and pushes entry into integrations array on the dossier.",
+    "create_checkout + paypal_create_order both enforce: (a) dossier must be completato, (b) no existing integration_pending, (c) integration_type ∈ {nuovi, dimenticati}. All three branches return HTTP 400 with clear Italian messages.",
+    "upload_files and delete_file gate on dossier.status=='completato' AND NOT integration_pending → correct behavior: patient can add files during integration window only.",
+    "upload_summary_file (admin-only) auto-clears integration_pending in the same $set — clean single-write update.",
+    "/api/admin/consents excludes _id via projection ({'_id':0}). /api/admin/consents/export returns text/csv with proper Content-Disposition attachment and semicolon-separated header. Both require admin (require_admin) → 403 for patient, 401 for unauthenticated.",
+    "Frontend integration-section only renders when completed && !integration_pending; pending-section takes over when in pending state — good UX separation.",
+    "Info banner (integration-info-banner) is unconditionally rendered on any dossier page including bozza/pagato/completato — matches spec of 'under upload area on any dossier page'.",
+    "Minor: PATIENT UI login redirects mario.rossi to /consenso because the seed user has no consents_version. Documented in test_credentials.md — acceptable.",
+    "Note: Existing dossier doss_fbbdfe2a258f is NOT in completato state (still 'in attesa di pagamento') so integration section not visible there — used doss_ccab969771cc (created by test) for E2E verification. Not a bug."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100%"},
+  "test_credentials": "Admin spitaleri.pietro@gmail.com / DossierMedico2026! and Patient mario.rossi@test.it / Test1234! both work. Patient UI first login goes through /consenso.",
+  "seed_data_creation": "Created multiple TEST_ dossiers for mario.rossi via API (TEST integr valid, TEST upload gating, etc.) — several are now in 'completato' state. doss_ccab969771cc used for E2E integration payment; it now has: integration_pending=false (cleared), 1 integrations entry {type:'nuovi', paid_at:...}, summary_file attached (tiny placeholder PDF). Admin patched dossiers to 'completato' during tests. Consider periodic cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New feature suite fully green. Test file /app/backend/tests/test_new_features.py is reusable regression coverage (13 tests). E2E Stripe integration payment path was exercised live via Playwright with test card 4242... in Italy country to bypass US phone/state requirements. If Stripe checkout template changes, the country dropdown selector and Pay button selector may need updating."
+}

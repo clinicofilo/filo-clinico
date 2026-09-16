@@ -1,0 +1,29 @@
+{
+  "summary": "Regression round 6 after hook-deps + sessionStorage + credentials-from-env refactors. Backend health OK, both logins OK (patient + admin), /api/dossiers OK for both roles. Pytest test_new_features.py 13/13 PASS. Full frontend regression via Playwright: patient dashboard loads (16 dossiers), create-dossier refreshes list to 17 cards (no stale closure), dossier page shows questionnaire-section + upload-locked, questionnaire-confirm-button unlocks upload-dropzone, integration-info-banner visible, payment/success?session_id=fake_test polls without crash (sessionStorage read works), logout works + protected route /dashboard redirects to /auth, admin dashboard loads (stats 18/1/6, 4 tabs, consents table + export), admin dossier detail shows editable title/patient inputs, status select with 2 options (pagato + completato), and PDF upload button. No stale-closure regressions.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/iter6_regression.xml"
+  ],
+  "action_items": [
+    "Optional: /app/backend/tests/backend_test.py has 6 stale failures unrelated to this refactor — register tests expect old schema (pre-consent), file-upload tests don't confirm questionnaire first, drive tests expect not-configured. Consider updating these to reflect the current API contract (or add pytest.mark.skip). Not blocking the regression."
+  ],
+  "critical_code_review_comments": [
+    "AuthContext refactor is clean: all 5 fns wrapped in useCallback with correct [] deps (they read state via api client, not stale closures); provider value memoized via useMemo including all deps.",
+    "DossierPage.load uses useCallback([id]) — correct: id is the only external dep. useEffect([load]) is idiomatic and refreshes correctly on id change.",
+    "DoctorDashboard.load uses useCallback([]) with useEffect([load, searchParams]) — searchParams-driven toasts remain reactive; load itself doesn't need re-creating.",
+    "PatientDashboard.load useCallback([]) + useEffect([load]) + call to load() inside create() ensures the list re-fetches after POST — verified live (16→17 cards).",
+    "PaymentResult.jsx now reads sessionStorage on render (not in useEffect). Because component re-renders on state change (polling→paid/timeout), the pending_payment link is resolved at each render — works, but if the tab was reopened and sessionStorage cleared, the fallback /dashboard link is used. Acceptable.",
+    "sessionStorage vs localStorage tradeoff: pending_payment is short-lived per-tab context; sessionStorage is correct choice (auto-cleared on tab close, avoids stale data across sessions).",
+    "Minor: PaymentSuccess useEffect deps only include [searchParams] but the tries ref is fine (mutable ref). No lint issues expected.",
+    "Backend tests already load credentials from env via load_dotenv — good, no more hardcoded creds."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% on new_features (13/13); 20/26 on legacy backend_test.py (stale, not regression)", "frontend": "100% (all 7 regression items verified)"},
+  "test_credentials": "Admin spitaleri.pietro@gmail.com / DossierMedico2026! and Patient mario.rossi@test.it / Test1234! both work. Patient already has consents_version=1.0 from previous tests, so no /consenso redirect on this run.",
+  "seed_data_creation": "Created 1 new dossier as mario.rossi via UI: TEST_regr_22261 (doss_3e972c47cddc). Patient has 17 dossiers now (many TEST_ prefixed from prior iterations). Suggest a cleanup pass.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All refactors from iteration 5 report validated. Correct auth input testids are auth-email-input / auth-password-input (NOT login-email-input). Doctor dossier detail is at /admin/dossier/{id} with data-testid=doctor-dossier-page and edit-title-input / edit-patient-name-input / status-select / summary-file-select-button. Payment page shows 4x 404s in console for /payments/status/fake_test — this is expected (fake session id) and the polling UI handles it correctly. The 401s on /auth/me before login are AuthContext's normal probe."
+}

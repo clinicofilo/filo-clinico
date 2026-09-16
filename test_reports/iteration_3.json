@@ -1,0 +1,22 @@
+{
+  "summary": "Backend-only end-to-end verification of the PKCE bug-fix. All 11 pytest tests pass (100%). Verified: (1) admin login + GET /api/drive/status returns {connected:true, configured:true}; (2) GET /api/drive/connect returns a Google authorization_url with scope drive.file, access_type=offline, and NO code_challenge param (PKCE disabled as intended); (3) patient (mario.rossi) upload to POST /api/dossiers/doss_fbbdfe2a258f/files returns a file entry with a non-null drive_file_id, proving the stored OAuth tokens actually work for Drive API writes (incl. any refresh); (4) GET /api/dossiers/doss_fbbdfe2a258f/files/{file_id} with patient cookie returns 200 + bytes; (5) GET /api/drive/callback with invalid code and with no params still redirects (307) to /admin?drive=error — graceful error handling intact.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_drive_and_regression.py",
+    "/app/test_reports/pytest/drive_regression.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PKCE fix looks correct: _drive_flow(autogenerate_code_verifier=False) is used in both /connect and /callback so no code_verifier is required across the two Flow instances — verified by absence of code_challenge in the auth URL.",
+    "server.py is now ~920+ lines; consider splitting drive/auth/dossier/payments into separate routers for maintainability."
+  ],
+  "updated_files": ["/app/backend/tests/test_drive_and_regression.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested (per request)"},
+  "test_credentials": "admin: spitaleri.pietro@gmail.com / DossierMedico2026! ; patient: mario.rossi@test.it / Test1234!",
+  "seed_data_creation": "Uploaded a 1x1 PNG (referto_prova_test.png) to dossier doss_fbbdfe2a258f under patient mario.rossi. This creates one extra file entry per test run in the dossier and (via Drive) in the doctor's 'Dossier Pazienti' > 'Mario Rossi - doss_fbbdfe2a258f' folder — safe to prune if desired.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "PKCE bug-fix is fully verified end-to-end. Drive OAuth tokens are persisted and working. If Drive is disconnected in the future, TestDriveUploadSuccess will fail with drive_file_id=null — that would indicate token refresh or re-consent is required.",
+  "rca of the issue": "Original callback error 'invalid_grant: Missing code verifier' happened because google-auth-oauthlib's Flow auto-generated a PKCE code_verifier at /drive/connect time but a brand-new Flow instance in /drive/callback had no memory of it. Fix (verified): both endpoints now instantiate Flow with autogenerate_code_verifier=False, so no code_challenge is sent at auth time and no code_verifier is expected at token-exchange time. End-to-end proof: successful upload returned drive_file_id, meaning the tokens stored from the PKCE-less callback are valid for real Drive API calls."
+}

@@ -1,0 +1,49 @@
+{
+  "summary": "Iteration 7: E2E testing of password reset + recovery email + IVA labels + backend regression. Backend pytest 17/18 PASS (test_password_reset.py). Frontend: /auth login shows 'Hai dimenticato la password?' link, forgot dialog submits and shows sent-message; register tab shows recovery-email input + strict password rules label; weak password 'abcdefg1' triggers rule error; strong password 'TestSicuro2026!' + consents successfully registers -> /dashboard. /reset-password without token shows 'Link non valido: manca il token'; with fake token shows 'Link non valido o già utilizzato'. Landing pricing cards show '50 € + IVA' and '+ 50 € + IVA'. Regression: admin/patient login, /api/health, /api/dossiers both roles all 200. ONE SECURITY BUG found: forgot-password returns 502 when email is undeliverable (e.g. mario.rossi@test.it) instead of 200 — this leaks account existence.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "/api/auth/forgot-password",
+        "issue": "Returns 502 'Invio email non riuscito' when Resend rejects the recipient as undeliverable (422 Undeliverable recipient). Violates the documented 'always return 200 (no account leak)' contract. Unknown email -> 200; real user with bogus/bouncing domain -> 502. This is an account-enumeration side channel. The token is still created in DB, so functionally the flow could be completed if the user obtained the token another way, but the HTTP response leaks that the email belongs to a real account with a non-deliverable inbox.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "DossierPage integration paragraph (line ~305)",
+        "issues": ["Prose sentence 'hanno un costo di 25 € e sono redatte entro 72 ore' does NOT include '+ IVA'. The section heading (line 433) and CTA (line 463) correctly show '25 € + IVA', but this in-body sentence is inconsistent. Consider adding '+ IVA' for full consistency."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_password_reset.py",
+    "/app/test_reports/pytest/iter7_password_reset.xml"
+  ],
+  "action_items": [
+    "FIX (HIGH, security): In /api/auth/forgot-password, wrap send_email in try/except and always return {'ok': True} regardless of email-delivery outcome. Log the delivery failure server-side. Current behavior leaks that mario.rossi@test.it (undeliverable) is a real account by returning 502 while unknown emails get 200.",
+    "OPTIONAL (cosmetic): Add '+ IVA' to the integration-explanation paragraph in DossierPage.jsx line ~305 for consistency with the rest of the UI."
+  ],
+  "critical_code_review_comments": [
+    "send_email raises HTTPException(502) on delivery failure and forgot_password does not catch it — root cause of the enumeration leak. Fix: wrap the send_email call in try/except and swallow errors (logger.error) in forgot-password specifically.",
+    "validate_password_strength is enforced in register + reset-password (good). Login endpoint intentionally does NOT enforce it so legacy users (e.g. mario.rossi with 'Test1234!' — only 4 letters) can still log in. Reset flow enforces new rules — legacy users who forget cannot use reset to restore a weak password (correct behavior).",
+    "Token generation uses uuid4().hex * 2 (64 hex chars). Adequate entropy. expires_at + used flag + delete on new-request are all correct; unique index on token exists (server.py line 1285).",
+    "Rate limiting on forgot-password: 5 attempts / IP / 15 min (line 407-416). Uses login_attempts collection with 'forgot:<ip>' identifier. Correct, and separate from login rate limit.",
+    "recovery_email is EmailStr Optional (line 342). Frontend correctly omits when empty; empty string submission -> 422 (Pydantic email validation). Documented in review request as expected behavior."
+  ],
+  "updated_files": ["/app/backend/tests/test_password_reset.py"],
+  "success_rate": {
+    "backend": "17/18 (94%) — 1 security failure documenting the 502 leak",
+    "frontend": "100% (all 6 UI checks passed: forgot link/dialog/sent-msg, recovery-email input, weak-pwd rule error, strong-pwd register, /reset-password no-token invalid, /reset-password fake-token error, IVA labels on landing)"
+  },
+  "test_credentials": "Admin dott.spitaleripietro@gmail.com / DossierMedico2026! and Patient mario.rossi@test.it / Test1234! both work. Patient password was reset back to Test1234! after test_reset_full_flow_patient_then_restore.",
+  "seed_data_creation": "Registered 1 test user (test.strong.<hash>@test.it) via UI during weak/strong pwd validation — CLEANED UP after test. Test dossiers/login_attempts also cleaned.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend security bug: forgot-password returns 502 when email delivery fails (Resend rejects bogus domains as undeliverable). Test cases in /app/backend/tests/test_password_reset.py — one test 'test_forgot_undeliverable_real_user_should_return_200' expects 200 and will start passing once E1 wraps send_email in try/except in forgot_password. Run: pytest backend/tests/test_password_reset.py -v -o addopts='' (pytest-xdist parallel with LoadScope causes token races on the full-flow test so serial is safer). test_new_features.py from prior iterations still passes (13/13). Password Test1234! for mario.rossi is legacy-weak (4 letters, new rules need 6) — direct-DB bcrypt hash update needed if a test breaks it.",
+  "rca of the issue": "forgot-password → send_email → httpx POST to Resend integration → Resend returns 422 'Undeliverable recipient' → send_email catches HTTPStatusError and raises HTTPException(502). forgot_password does not catch this and lets the 502 propagate. Reproduction: POST /api/auth/forgot-password with any real account on a non-deliverable domain (e.g. mario.rossi@test.it). Mitigation: wrap `await send_email(...)` in try/except and swallow the exception (log it) in forgot_password. The token is already stored in DB before send_email is invoked, so no rollback needed on failure."
+}

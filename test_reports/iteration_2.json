@@ -1,0 +1,24 @@
+{
+  "summary": "Backend-only test of the Google Drive OAuth graceful-error fix and auth/dossier regression. All 9 pytest tests passed (100%). Verified /api/drive/connect returns a valid Google authorization_url with client_id/redirect_uri/scope; /api/drive/status returns {connected:false, configured:true}; /api/drive/callback returns a 307 redirect to /admin?drive=error for (a) ?error=access_denied, (b) ?code=invalid_fake_code (real Google token exchange failure), and (c) no params — no 500s. Regression: admin login, patient login, /api/health, and /api/dossiers (patient) all work.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_drive_and_regression.py",
+    "/app/test_reports/pytest/drive_regression.xml"
+  ],
+  "action_items": [
+    "User must re-copy a valid GOOGLE_CLIENT_SECRET from Google Cloud Console to enable the real Drive OAuth success path (out of scope for automated testing)."
+  ],
+  "critical_code_review_comments": [
+    "drive_callback correctly wraps flow.fetch_token in try/except and returns RedirectResponse to FRONTEND_URL/admin?drive=error for all failure modes (missing code, OAuth error, token exchange exception) — matches requested behavior.",
+    "server.py is 923 lines — consider splitting into modules (auth, dossiers, drive, payments) for maintainability."
+  ],
+  "updated_files": ["/app/backend/tests/test_drive_and_regression.py"],
+  "success_rate": {"backend": "100%", "frontend": "not tested (per request)"},
+  "test_credentials": "admin: spitaleri.pietro@gmail.com / DossierMedico2026! ; patient: mario.rossi@test.it / Test1234!",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Drive OAuth success path cannot be tested until GOOGLE_CLIENT_SECRET is refreshed. Graceful failure path fully covered by /app/backend/tests/test_drive_and_regression.py::TestDriveOAuth.",
+  "rca of the issue": "Original bug: oauthlib InvalidClientError at flow.fetch_token in /api/drive/callback caused HTTP 500. RCA: invalid GOOGLE_CLIENT_SECRET in env. Fix (verified): endpoint now catches exceptions and redirects to FRONTEND_URL/admin?drive=error instead of 500."
+}
