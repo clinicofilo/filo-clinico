@@ -266,22 +266,29 @@ class AsyncTable:
 
     async def insert_one(self, doc: Dict[str, Any]):
         doc_copy = copy.deepcopy(doc)
-        pk_val = doc_copy.get(self.pk_col)
-        if not pk_val:
-            pk_val = f"{self.table_name}_{uuid.uuid4().hex[:12]}"
-            doc_copy[self.pk_col] = pk_val
-
-        pk_val_str = str(pk_val)
         pool = get_pool()
 
-        # Calcola colonne dedicate presenti
-        cols = [self.pk_col]
-        vals = [pk_val_str]
-        param_placeholders = ["$1"]
+        # Handle auto-incrementing serial PK (e.g. id in consents, email_log)
+        is_serial_pk = (self.pk_col == "id" and doc_copy.get(self.pk_col) is None)
+        if not is_serial_pk:
+            pk_val = doc_copy.get(self.pk_col)
+            if not pk_val:
+                pk_val = f"{self.table_name}_{uuid.uuid4().hex[:12]}"
+                doc_copy[self.pk_col] = pk_val
+            pk_val_str = str(pk_val)
+            cols = [self.pk_col]
+            vals = [pk_val_str]
+            param_placeholders = ["$1"]
+            idx = 2
+        else:
+            cols = []
+            vals = []
+            param_placeholders = []
+            idx = 1
+            pk_val_str = None
 
-        idx = 2
         for c in self.dedicated_cols:
-            if c in doc_copy:
+            if c in doc_copy and doc_copy[c] is not None:
                 cols.append(c)
                 vals.append(doc_copy[c])
                 param_placeholders.append(f"${idx}")
@@ -291,15 +298,33 @@ class AsyncTable:
         vals.append(doc_copy)
         param_placeholders.append(f"${idx}")
 
-        sql = f"""
-            INSERT INTO {self.table_name} ({', '.join(cols)})
-            VALUES ({', '.join(param_placeholders)})
-            ON CONFLICT ({self.pk_col}) DO UPDATE SET
-                data = EXCLUDED.data,
-                updated_at = CURRENT_TIMESTAMP
-        """
-        async with pool.acquire() as conn:
-            await conn.execute(sql, *vals)
+        has_updated_at = self.table_name in ("users", "dossiers", "drive_credentials")
+
+        if is_serial_pk:
+            sql = f"""
+                INSERT INTO {self.table_name} ({', '.join(cols)})
+                VALUES ({', '.join(param_placeholders)})
+                RETURNING id
+            """
+            async with pool.acquire() as conn:
+                inserted_id = await conn.fetchval(sql, *vals)
+                pk_val_str = str(inserted_id)
+        else:
+            conflict_update = "data = EXCLUDED.data"
+            if has_updated_at:
+                conflict_update += ", updated_at = CURRENT_TIMESTAMP"
+            for c in self.dedicated_cols:
+                if c in doc_copy and doc_copy[c] is not None:
+                    conflict_update += f", {c} = EXCLUDED.{c}"
+
+            sql = f"""
+                INSERT INTO {self.table_name} ({', '.join(cols)})
+                VALUES ({', '.join(param_placeholders)})
+                ON CONFLICT ({self.pk_col}) DO UPDATE SET
+                    {conflict_update}
+            """
+            async with pool.acquire() as conn:
+                await conn.execute(sql, *vals)
 
         class InsertResult:
             inserted_id = pk_val_str
@@ -349,12 +374,28 @@ class AsyncTable:
         # Salva in PostgreSQL
         pk_val = updated_doc.get(self.pk_col)
         pool = get_pool()
+        has_updated_at = self.table_name in ("users", "dossiers", "drive_credentials")
+
+        set_clauses = ["data = $1"]
+        vals = [updated_doc]
+        idx = 2
+
+        if has_updated_at:
+            set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+
+        for c in self.dedicated_cols:
+            if c in updated_doc:
+                set_clauses.append(f"{c} = ${idx}")
+                vals.append(updated_doc[c])
+                idx += 1
+
+        vals.append(str(pk_val) if not isinstance(pk_val, int) else pk_val)
+        pk_param = f"${idx}"
+
+        sql = f"UPDATE {self.table_name} SET {', '.join(set_clauses)} WHERE {self.pk_col} = {pk_param}"
+
         async with pool.acquire() as conn:
-            await conn.execute(
-                f"UPDATE {self.table_name} SET data = $1, updated_at = CURRENT_TIMESTAMP WHERE {self.pk_col} = $2",
-                updated_doc,
-                str(pk_val)
-            )
+            await conn.execute(sql, *vals)
         return True
 
     async def delete_one(self, filter_dict: Dict[str, Any]):
