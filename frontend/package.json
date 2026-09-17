@@ -67,6 +67,11 @@
     "build": "craco build",
     "test": "craco test"
   },
+  "overrides": {
+    "react-day-picker": {
+      "date-fns": "$date-fns"
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",
