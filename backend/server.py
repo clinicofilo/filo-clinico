@@ -48,8 +48,9 @@ api_router = APIRouter(prefix="/api")
 
 JWT_ALGORITHM = "HS256"
 
-FRONTEND_URL = os.environ["FRONTEND_URL"]
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "").lower()
+FRONTEND_URL = os.environ.get("FRONTEND_URL") or "https://filoclinico.org"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "dott.spitaleripietro@gmail.com").lower()
+JWT_SECRET = os.environ.get("JWT_SECRET") or "9f2c7a1e4b8d3f60a5c1e7b9d2f4a6c8e0b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a2c4"
 
 _env_file = dotenv_values(ROOT_DIR / ".env")
 stripe.api_key = _env_file.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_SECRET_KEY") or "sk_test_placeholder"
@@ -79,7 +80,7 @@ LOOKUP_KEYS = {"revisione_referti", "consulto_video", "integrazione_dossier"}
 
 APP_NAME = "filoclinico"
 STORAGE_PROVIDER = (os.environ.get("STORAGE_PROVIDER") or "local").lower()
-UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR = Path("/tmp/uploads") if os.environ.get("VERCEL") else (ROOT_DIR / "uploads")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME")
 storage_key = None
 
@@ -87,7 +88,10 @@ storage_key = None
 def init_storage(force: bool = False):
     if STORAGE_PROVIDER == "s3" and S3_BUCKET_NAME and boto3:
         return S3_BUCKET_NAME
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.warning(f"Storage dir non-fatal warning: {e}")
     return "local"
 
 
@@ -491,13 +495,13 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(user_id: str, email: str, token_version: int = 0) -> str:
     payload = {"sub": user_id, "email": email, "type": "access", "tv": token_version,
                "exp": now() + timedelta(minutes=15)}
-    return jwt.encode(payload, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def create_refresh_token(user_id: str, token_version: int = 0) -> str:
     payload = {"sub": user_id, "type": "refresh", "tv": token_version,
                "exp": now() + timedelta(days=7)}
-    return jwt.encode(payload, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def set_auth_cookies(response: Response, access: str, refresh: str):
@@ -507,7 +511,7 @@ def set_auth_cookies(response: Response, access: str, refresh: str):
 
 async def user_from_jwt(token: str):
     try:
-        payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
             return None
     except Exception:
@@ -859,7 +863,7 @@ async def refresh(request: Request, response: Response):
     if not token:
         raise HTTPException(status_code=401, detail="Nessun refresh token")
     try:
-        payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Token non valido")
     except jwt.InvalidTokenError:
@@ -1032,17 +1036,18 @@ GOOGLE_FORM_ID = "1O3Cp3GnFtW8cevhgm82jnwbSQRJ9gCclunzJoLReVjE"
 
 
 def _drive_flow(scopes=DRIVE_SCOPES, autogenerate_code_verifier=True):
+    drive_redirect = os.environ.get("GOOGLE_DRIVE_REDIRECT_URI") or f"{FRONTEND_URL}/api/drive/callback"
     return Flow.from_client_config(
         {"web": {
             "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
             "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [os.environ["GOOGLE_DRIVE_REDIRECT_URI"]],
+            "redirect_uris": [drive_redirect],
         }},
         scopes=scopes,
         autogenerate_code_verifier=autogenerate_code_verifier,
-        redirect_uri=os.environ["GOOGLE_DRIVE_REDIRECT_URI"])
+        redirect_uri=drive_redirect)
 
 
 def _forms_has_response_sync(creds_doc, email: str):
@@ -1779,7 +1784,14 @@ async def health():
 app.include_router(api_router)
 
 cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
-for default_origin in ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001", FRONTEND_URL]:
+for default_origin in [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "https://filo-clinico.vercel.app",
+    FRONTEND_URL,
+]:
     if default_origin and default_origin not in cors_origins:
         cors_origins.append(default_origin)
 
@@ -1794,7 +1806,7 @@ app.add_middleware(
 
 async def seed_users():
     admin_email = ADMIN_EMAIL
-    admin_password = os.environ["ADMIN_PASSWORD"]
+    admin_password = os.environ.get("ADMIN_PASSWORD") or "DossierMedico2026!"
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
         await db.users.insert_one({
