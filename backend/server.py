@@ -1593,7 +1593,7 @@ async def paypal_capture_order(order_id: str, user=Depends(get_current_user)):
 @api_router.get("/admin/patients")
 async def list_patients(user=Depends(require_admin)):
     patients = await db.users.find(
-        {"role": {"$ne": "admin"}},
+        {},
         {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(500)
     for p in patients:
         p["dossier_count"] = await db.dossiers.count_documents({"patient_id": p["user_id"]})
@@ -1805,17 +1805,30 @@ app.add_middleware(
 
 
 async def seed_users():
-    admin_email = ADMIN_EMAIL
-    admin_password = os.environ.get("ADMIN_PASSWORD") or "DossierMedico2026!"
-    existing = await db.users.find_one({"email": admin_email})
-    if existing is None:
-        await db.users.insert_one({
-            "user_id": f"user_{uuid.uuid4().hex[:12]}", "email": admin_email,
-            "name": "Dott. Pietro Spitaleri", "role": "admin",
-            "password_hash": hash_password(admin_password),
-            "auth_provider": "email", "created_at": now().isoformat()})
-    elif existing.get("role") != "admin":
-        await db.users.update_one({"email": admin_email}, {"$set": {"role": "admin"}})
+    admin_accounts = [
+        ("admin@filoclinico.org", "Amministratore FiloClinico", "AdminFiloClinico2026!"),
+        ("clinicofilo@gmail.com", "Admin FiloClinico", "AdminFiloClinico2026!"),
+        ("dott.spitaleripietro@gmail.com", "Dott. Pietro Spitaleri", os.environ.get("ADMIN_PASSWORD") or "DossierMedico2026!"),
+    ]
+    for email, name, pwd in admin_accounts:
+        existing = await db.users.find_one({"email": email})
+        if existing is None:
+            await db.users.insert_one({
+                "user_id": f"user_{uuid.uuid4().hex[:12]}",
+                "email": email,
+                "name": name,
+                "role": "admin",
+                "password_hash": hash_password(pwd),
+                "auth_provider": "email",
+                "consents_version": "1.0",
+                "created_at": now().isoformat(),
+            })
+        else:
+            updates = {"role": "admin"}
+            if not existing.get("password_hash"):
+                updates["password_hash"] = hash_password(pwd)
+            await db.users.update_one({"email": email}, {"$set": updates})
+
     test_email = "mario.rossi@test.it"
     if await db.users.find_one({"email": test_email}) is None:
         await db.users.insert_one({

@@ -264,6 +264,10 @@ class AsyncTable:
     def find(self, filter_dict: Optional[Dict[str, Any]] = None, projection: Optional[Dict[str, int]] = None) -> AsyncCursor:
         return AsyncCursor(self, filter_dict, projection)
 
+    async def count_documents(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
+        docs = await self._fetch_all_raw()
+        return sum(1 for d in docs if _matches_filter(d, filter_dict))
+
     async def insert_one(self, doc: Dict[str, Any]):
         doc_copy = copy.deepcopy(doc)
         pool = get_pool()

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
-  CalendarPlus, CheckCircle2, Download, FolderOpen, HardDrive, Loader2, Mail, Pencil, ShieldCheck, Trash2, Video,
+  CalendarPlus, CheckCircle2, Download, FolderOpen, HardDrive, Loader2, Mail, Pencil, Search, ShieldCheck, Trash2, Users, Video,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
@@ -36,6 +36,8 @@ const DoctorDashboard = () => {
   const [editLink, setEditLink] = useState("");
   const [selected, setSelected] = useState([]);
   const [slotForm, setSlotForm] = useState({ datetime: "", meet_link: "" });
+  const [userSearch, setUserSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const [searchParams] = useSearchParams();
 
@@ -204,11 +206,13 @@ const DoctorDashboard = () => {
         <p className="text-muted-foreground mb-10">Gestisci dossier, disponibilità e archivio Drive.</p>
 
         {stats && (
-          <div className="grid grid-cols-3 gap-4 mb-12" data-testid="doctor-stats">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-12" data-testid="doctor-stats">
             {[
+              { label: "Utenti registrati", value: patients.length, testid: "stat-users" },
               { label: "Dossier totali", value: stats.totale, testid: "stat-total" },
               { label: "Da revisionare", value: stats.in_lavorazione, testid: "stat-pending" },
               { label: "Completati", value: stats.completati, testid: "stat-completed" },
+              { label: "Slot video", value: slots.length, testid: "stat-slots" },
             ].map((s) => (
               <div key={s.label} className="bg-card border border-border rounded-2xl p-6" data-testid={s.testid}>
                 <p className="font-serif text-3xl text-primary">{s.value}</p>
@@ -224,7 +228,7 @@ const DoctorDashboard = () => {
             <TabsTrigger value="slot" data-testid="tab-slots">Disponibilità video</TabsTrigger>
             <TabsTrigger value="drive" data-testid="tab-drive">Google Drive</TabsTrigger>
             <TabsTrigger value="consensi" data-testid="tab-consents">Consensi</TabsTrigger>
-            <TabsTrigger value="pazienti" data-testid="tab-patients">Pazienti</TabsTrigger>
+            <TabsTrigger value="pazienti" data-testid="tab-patients">Utenti & Pazienti ({patients.length})</TabsTrigger>
             <TabsTrigger value="email" data-testid="tab-emails">Email</TabsTrigger>
           </TabsList>
 
@@ -564,51 +568,123 @@ const DoctorDashboard = () => {
 
           <TabsContent value="pazienti">
             <div className="bg-card border border-border rounded-2xl overflow-hidden" data-testid="patients-panel">
-              <div className="p-6 border-b border-border">
-                <h2 className="font-serif text-xl text-primary">Account pazienti</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Eliminando un paziente vengono rimossi account, dossier e referti caricati. I file già copiati sul tuo Drive, i pagamenti e i consensi vengono conservati.
-                </p>
+              <div className="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-serif text-xl text-primary flex items-center gap-2">
+                    <Users className="h-5 w-5 text-secondary" />
+                    Registro Utenti e Pazienti
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Visualizza tutti gli account registrati sulla piattaforma, il loro ruolo, stato consensi GDPR e dossier associati.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Cerca per nome o email..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="pl-9 rounded-full text-sm"
+                    />
+                  </div>
+                  <select
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    className="border border-border rounded-full px-3 py-2 text-sm bg-background text-foreground"
+                  >
+                    <option value="all">Tutti i ruoli</option>
+                    <option value="patient">Solo Pazienti</option>
+                    <option value="admin">Solo Admin/Medici</option>
+                  </select>
+                </div>
               </div>
-              {patients.length === 0 ? (
-                <p className="text-muted-foreground p-6" data-testid="patients-empty">Nessun paziente registrato.</p>
-              ) : (
-                <table className="w-full text-left" data-testid="patients-table">
-                  <thead className="bg-muted text-sm text-muted-foreground">
-                    <tr>
-                      <th className="px-6 py-4 font-medium">Paziente</th>
-                      <th className="px-6 py-4 font-medium hidden sm:table-cell">Dossier</th>
-                      <th className="px-6 py-4 font-medium hidden md:table-cell">Registrato il</th>
-                      <th className="px-6 py-4" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {patients.map((p) => (
-                      <tr key={p.user_id} className="hover:bg-muted/50 transition-colors duration-200" data-testid={`patient-row-${p.user_id}`}>
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-foreground">{p.name || "—"}</p>
-                          <p className="text-xs text-muted-foreground">{p.email}</p>
-                        </td>
-                        <td className="px-6 py-4 hidden sm:table-cell text-sm">{p.dossier_count}</td>
-                        <td className="px-6 py-4 hidden md:table-cell text-sm text-muted-foreground">
-                          {p.created_at ? new Date(p.created_at).toLocaleDateString("it-IT") : "—"}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deletePatient(p)}
-                            data-testid={`delete-patient-${p.user_id}`}
-                            aria-label={`Elimina paziente ${p.email}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+
+              {(() => {
+                const filtered = patients.filter((p) => {
+                  const q = userSearch.toLowerCase();
+                  const matchQuery = !q || (p.name || "").toLowerCase().includes(q) || (p.email || "").toLowerCase().includes(q);
+                  const matchRole = roleFilter === "all" || p.role === roleFilter;
+                  return matchQuery && matchRole;
+                });
+
+                if (filtered.length === 0) {
+                  return <p className="text-muted-foreground p-6" data-testid="patients-empty">Nessun utente trovato con i filtri selezionati.</p>;
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left" data-testid="patients-table">
+                      <thead className="bg-muted text-sm text-muted-foreground">
+                        <tr>
+                          <th className="px-6 py-4 font-medium">Utente</th>
+                          <th className="px-6 py-4 font-medium">Ruolo</th>
+                          <th className="px-6 py-4 font-medium hidden sm:table-cell">Consenso GDPR</th>
+                          <th className="px-6 py-4 font-medium hidden sm:table-cell">Dossier</th>
+                          <th className="px-6 py-4 font-medium hidden md:table-cell">Registrato il</th>
+                          <th className="px-6 py-4 text-right">Azioni</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {filtered.map((p) => (
+                          <tr key={p.user_id} className="hover:bg-muted/50 transition-colors duration-200" data-testid={`patient-row-${p.user_id}`}>
+                            <td className="px-6 py-4">
+                              <p className="font-medium text-foreground">{p.name || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{p.email}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              {p.role === "admin" ? (
+                                <Badge className="bg-primary/20 text-primary border border-primary/30">
+                                  Medico / Admin
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-secondary/15 text-secondary border border-secondary/30">
+                                  Paziente
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 hidden sm:table-cell text-sm">
+                              {p.consents_version ? (
+                                <Badge variant="outline" className="text-emerald-600 border-emerald-300 bg-emerald-50">
+                                  Attivo ({p.consents_version})
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                                  In attesa
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 hidden sm:table-cell text-sm">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-foreground">
+                                {p.dossier_count || 0} dossier
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 hidden md:table-cell text-sm text-muted-foreground">
+                              {p.created_at ? new Date(p.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {p.role !== "admin" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deletePatient(p)}
+                                  data-testid={`delete-patient-${p.user_id}`}
+                                  aria-label={`Elimina paziente ${p.email}`}
+                                  title="Elimina account paziente"
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Protetto</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           </TabsContent>
 
