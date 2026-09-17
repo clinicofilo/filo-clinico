@@ -1806,6 +1806,7 @@ app.add_middleware(
 
 async def seed_users():
     admin_accounts = [
+        ("admin@filoclinico.it", "Amministratore FiloClinico", "AdminFiloClinico2026!"),
         ("admin@filoclinico.org", "Amministratore FiloClinico", "AdminFiloClinico2026!"),
         ("clinicofilo@gmail.com", "Admin FiloClinico", "AdminFiloClinico2026!"),
         ("dott.spitaleripietro@gmail.com", "Dott. Pietro Spitaleri", os.environ.get("ADMIN_PASSWORD") or "DossierMedico2026!"),
@@ -1824,9 +1825,7 @@ async def seed_users():
                 "created_at": now().isoformat(),
             })
         else:
-            updates = {"role": "admin"}
-            if not existing.get("password_hash"):
-                updates["password_hash"] = hash_password(pwd)
+            updates = {"role": "admin", "password_hash": hash_password(pwd)}
             await db.users.update_one({"email": email}, {"$set": updates})
 
     test_email = "mario.rossi@test.it"
