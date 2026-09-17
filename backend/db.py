@@ -25,13 +25,14 @@ def normalize_pg_url(url: str):
     query_params = urllib.parse.parse_qs(parsed.query)
     sslmode = query_params.get("sslmode", [""])[0].lower()
 
-    # Supabase hosts always require SSL
+    # Cloud PostgreSQL hosts always require SSL
     is_supabase = (
         "supabase.co" in parsed.netloc
         or "pooler.supabase.com" in parsed.netloc
         or "supabase.com" in parsed.netloc
     )
-    needs_ssl = is_supabase or sslmode in ("require", "prefer", "verify-ca", "verify-full")
+    is_neon = "neon.tech" in parsed.netloc or "neon." in parsed.netloc
+    needs_ssl = is_supabase or is_neon or sslmode in ("require", "prefer", "verify-ca", "verify-full")
 
     # Strip params that asyncpg does not accept in DSN query string
     filtered_query = {k: v[0] for k, v in query_params.items() if k not in ("sslmode", "pgbouncer")}
